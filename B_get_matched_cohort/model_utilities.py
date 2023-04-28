@@ -76,15 +76,10 @@ def add_geo_features(cohort_df, geo_df_name, join_cols = ['pat_id', 'instance'])
     return_df = cohort_df.join(joined_df, join_cols, 'left')
   return return_df 
 
-"""
-Created on Tue Nov  6 10:06:52 2018
-@author: yandexdataschool
-Original Code found in:
-https://github.com/yandexdataschool/roc_comparison
-Updated Code from: Raul Sanchez-Vazquez
-https://gist.github.com/RaulSanchezVazquez/d338c271ace3e218d83e3cb6400a769c
-"""
 
+# Created on Tue Nov  6 10:06:52 2018
+# original code found in: https://github.com/yandexdataschool/roc_comparison (author:yandexdatachool) 
+# Updated code found in: https://gist.github.com/RaulSanchezVazquez/d338c271ace3e218d83e3cb6400a769c (author:Raul Sanchez-Vazquez)
 # AUC comparison adapted from
 # https://github.com/Netflix/vmaf/
 def compute_midrank(x):
