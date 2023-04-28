@@ -15,7 +15,7 @@ We used Python version 3.8.10.
 Our workflow is described using alphabets. 
 
 - [utilities](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/utilities) contains functions written by Hadlock Lab and required to be loaded for analysis    
-- [background cohort](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/background_cohorts) is used to generate PHSA COVID-19 Maternity Cohort 
+- [background cohort](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/background_cohorts) is used to generate PHSA COVID-19 Maternity Cohort. These codes were from [Piekos et al. 2022](https://github.com/Hadlock-Lab/COVID19_vaccination_in_pregnancy) 
 - [A_get_cohorts](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/A_get_cohorts) prepares cohort for analysis. Includes cohort selection process and feature engineering. 
 - [B_get_matched_cohort](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/B_get_matched_cohort) runs classification model, propensity score matching, and feature importance
 - [C_get_figures](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/C_get_figures) contains codes used for figure or table generation 
