@@ -5,12 +5,23 @@
 import COVID19_Maternity_Inpatient_Anticoagulant.A_get_cohorts.cohort_utilities
 
 
+
+# Workflow of A_finalize_cohort1.py 
+# 1. Get basic maternal/pregnancy characteristics 
+# 2. Get patient condition characteristics 
+# 3. Get alcohol/illegal drug use/smoking status 
+# 4. Get GPAL information 
+
+
+
 # covid anticoagulant prophylactic dose administered cohort 
 covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_final_102422")
 # covid anticoagulant not administered cohort 
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_final_102422")
 
 
+
+# 1. Get basic maternal/pregnancy characteristics 
 filter_start_date = '2020-03-05'
 filter_end_date = '2022-10-20'
 query_string = \
@@ -41,7 +52,7 @@ covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_ma
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_1_102422")
 # no covid anticoagulant prophylactic dose administered cohort 
 
-
+# 2. Get patient condition characteristics 
 # save patient condition dataframes
 write_all_pat_conditions_df(covid_administered, 'yh_covid_maternity_covid_anticoagulant_conditions_102422')
 write_all_pat_conditions_df(covid_notadministered, 'yh_covid_maternity_covid_noanticoagulant_conditions_102422')
@@ -106,6 +117,10 @@ covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_ma
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_4_102422")
 
 
+
+
+
+# 3. Get alcohol/illegal drug use/smoking status 
 covid_administered = add_drug_use_to_df(covid_administered)
 print('\n')
 covid_notadministered = add_drug_use_to_df(covid_notadministered)
@@ -137,7 +152,7 @@ load_notes_join_save(df_cohort_maternity_filtered, "yh_cohort_maternity_GPAL_102
 
 
 
-# obtain parity, gravidity, and previous preterm births info
+# obtain GPAL 
 covid_administered  = add_previous_pregnancies_to_df(covid_administered, "yh_cohort_maternity_GPAL_102422")
 print('\n')
 covid_notadministered  = add_previous_pregnancies_to_df(covid_notadministered, "yh_cohort_maternity_GPAL_102422")

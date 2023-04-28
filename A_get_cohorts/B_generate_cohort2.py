@@ -4,9 +4,16 @@
 # import functions from other notebooks
 import COVID19_Maternity_Inpatient_Anticoagulant.A_get_cohorts.cohort_utilities
 
- # get inpatient information 
+# Workflow of A_generate_cohort2.py 
+# 1. Get Inpatient Information 
+# 1.1 Load Inpatient data 
+# 1.2 Admission and discharge date based on the COVID-19 infection 
+# 1.3 Filter for patients who were hospitalized during the active COVID-19 infection period 
 
- inpatientadt = adtevent.filter(F.col('patientclass')=='Inpatient')
+
+ # load inpatient data from adtevent database
+
+inpatientadt = adtevent.filter(F.col('patientclass')=='Inpatient')
 inpatientadt = inpatientadt.withColumn('admissiondatetime', F.when(F.col('EVENTTYPE')=='Admission', F.col('EVENTTIMESTAMP')). \
                                                             when(F.col('EVENTTYPE')=='Transfer In', F.col('EVENTTIMESTAMP')). \
                                                             otherwise(None))
@@ -19,13 +26,15 @@ inpatient = encounter.union(inpatientadt_ag)
 inpatient_final_ag = aggregate_data(inpatient, partition_columns = ['PAT_ID', 'INSTANCE', 'PAT_ENC_CSN_ID'], aggregation_columns = {'ADMISSIONDATETIME':'min', 'DISCHARGEDATETIME':'max'}).withColumnRenamed('ADMISSIONDATETIME_min', 'ADMISSIONDATETIME').withColumnRenamed('DISCHARGEDATETIME_max', 'DISCHARGEDATETIME')
 
 
-# get admission and discharge date with covid 
+
+# Any overlap between hospitlalization period and active COVID-19 infection period for anticoagulant administered patient 
+# admission and discharge related to COVID-19 infection 
 anti_encounter1 = anti.join(inpatient_final_ag, ['pat_id', 'instance'], 'left')\
                     .filter(((F.col('dischargedatetime')>F.col('covid_test_date')) & (F.col('covid_test_date') >= F.col('admissiondatetime'))) | ((F.col('admissiondatetime')>F.date_sub(F.col('covid_test_date'),7))&(F.col('admissiondatetime')<F.date_add(F.col('covid_test_date'), 14)))).withColumn('admission_withcovid', F.datediff(F.col('admissiondatetime'), F.col('covid_test_date'))).withColumn('discharge_withcovid', F.datediff(F.col('dischargedatetime'), F.col('covid_test_date'))).withColumnRenamed('admissiondatetime', 'covid_admissiondatetime').withColumnRenamed('dischargedatetime', 'covid_dischargedatetime')
 select_columns = ['pat_id', 'instance', 'episode_id', 'child_episode_id', 'admission_withcovid', 'discharge_withcovid', 'covid_admissiondatetime', 'covid_dischargedatetime']
 anti_encounter1 = anti_encounter1.select(*select_columns)
 
-
+# length of hospitalization after COVID-19 infection before delivery 
 anti_encounter2 = anti.join(inpatient_final_ag, ['pat_id', 'instance'], 'left').filter(F.col('dischargedatetime')>=F.col('covid_test_date')).filter(F.col('admissiondatetime')<F.col('ob_delivery_delivery_date')).withColumn('admissiondatetime', F.when(F.col('admissiondatetime')<=F.col('covid_test_date'), F.col('covid_test_date')).otherwise(F.col('admissiondatetime'))).withColumn('inpatient_duration', F.datediff(F.col('dischargedatetime'), F.col('admissiondatetime'))).withColumn('inpatient_duration', F.col('inpatient_duration')+1).withColumnRenamed('admissiondatetime', 'inpatient_admissiondatetime').withColumnRenamed('dischargedatetime', 'inpatient_dischargedatetime')
 
 select_columns = ['pat_id', 'instance','episode_id', 'child_episode_id', 'inpatient_duration', 'inpatient_admissiondatetime', 'inpatient_dischargedatetime']
@@ -34,7 +43,8 @@ anti_encounter2 = anti_encounter2.select(*select_columns)
 
 
 
-# get admission and discharge date with covid 
+# Any overlap between hospitlalization period and active COVID-19 infection period for anticoagulant not administered patient 
+# admission and discharge related to COVID-19 infection 
 noanti_encounter1 = noanti.join(inpatient_final_ag, ['pat_id', 'instance'], 'left')\
                     .filter(((F.col('dischargedatetime')>F.col('covid_test_date')) & (F.col('covid_test_date') >= F.col('admissiondatetime'))) | ((F.col('admissiondatetime')>F.date_sub(F.col('covid_test_date'),7))&(F.col('admissiondatetime')<F.date_add(F.col('covid_test_date'), 14)))).withColumn('admission_withcovid', F.datediff(F.col('admissiondatetime'), F.col('covid_test_date'))).withColumn('discharge_withcovid', F.datediff(F.col('dischargedatetime'), F.col('covid_test_date'))).withColumnRenamed('admissiondatetime', 'covid_admissiondatetime').withColumnRenamed('dischargedatetime', 'covid_dischargedatetime')
 select_columns = ['pat_id', 'instance', 'episode_id', 'child_episode_id', 'admission_withcovid', 'discharge_withcovid', 'covid_admissiondatetime', 'covid_dischargedatetime']
@@ -44,7 +54,7 @@ noanti_encounter1 = noanti_encounter1.select(*select_columns)
 noanti_encounter2 = noanti.join(inpatient_final_ag, ['pat_id', 'instance'], 'left').filter(F.col('dischargedatetime')>=F.col('covid_test_date')).filter(F.col('admissiondatetime')<F.col('ob_delivery_delivery_date')).withColumn('admissiondatetime', F.when(F.col('admissiondatetime')<=F.col('covid_test_date'), F.col('covid_test_date')).otherwise(F.col('admissiondatetime'))).withColumn('inpatient_duration', F.datediff(F.col('dischargedatetime'), F.col('admissiondatetime'))).withColumn('inpatient_duration', F.col('inpatient_duration')+1).withColumnRenamed('admissiondatetime', 'inpatient_admissiondatetime').withColumnRenamed('dischargedatetime', 'inpatient_dischargedatetime')
 
 select_columns = ['pat_id', 'instance','episode_id', 'child_episode_id', 'inpatient_duration', 'inpatient_admissiondatetime', 'inpatient_dischargedatetime']
-
+# length of hospitalization after COVID-19 infection before delivery 
 noanti_encounter2 = noanti_encounter2.select(*select_columns)
 
 

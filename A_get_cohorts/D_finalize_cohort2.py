@@ -5,6 +5,12 @@
 import COVID19_Maternity_Inpatient_Anticoagulant.A_get_cohorts.cohort_utilities
 
 
+
+# Workflow of A_finalize_cohort2.py 
+# 1. Get Comorbiditiy level within two years period 
+# 2. Get 14 days of medication administration after COVID-19 infection 
+
+
 # covid anticoagulant prophylactic dose administered cohort 
 covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_6_102422")
 # covid anticoagulant not administered cohort 

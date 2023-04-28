@@ -5,6 +5,22 @@
 import COVID19_Maternity_Inpatient_Anticoagulant.A_get_cohorts.cohort_utilities
 
 
+
+# Workflow of A_finalize_cohort3.py - add outcomes 
+# 1. Get post COVID-19 infection diagnosis count 
+# 2. Get post 48 hours after COVID-19 infection medication count 
+# 3. Get use of vasopressor 
+# 4. Add hospitalization information 
+# 5. Add coagulation related features 
+# 6. Add maternal death 
+# 7. Add Vaccination status 
+# 8. Add WHO score 
+# 9. Add primary, secondary coagulopathy
+# 10. Add bleeding, postpartum hemorrahge
+# 11. Add prior therapetuic dosage 
+
+
+
 # covid anticoagulant prophylactic dose administered cohort 
 spark.sql("REFRESH TABLE rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_7_102422")
 covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_7_102422")
@@ -13,7 +29,7 @@ spark.sql("REFRESH TABLE rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagul
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_7_102422")
 
 
-
+# 1. Get post COVID-19 infection diagnosis count 
 meds = get_medication_orders(covid_administered.drop('name', 'start_date', 'end_date'), add_cc_columns=['sam_anticoagulant']).filter(~F.col('sam_anticoagulant'))
 
 covid_administered_postcovid_diagnoses = get_postcovid_diagnosis_count(covid_administered)
@@ -22,6 +38,9 @@ covid_administered = covid_administered.join(covid_administered_postcovid_diagno
 covid_notadministered_postcovid_diagnoses = get_postcovid_diagnosis_count(covid_notadministered)
 covid_notadministered = covid_notadministered.join(covid_notadministered_postcovid_diagnoses, ['pat_id', 'instance', 'episode_id', 'child_episode_id'], 'left').fillna(0, subset = ['count_postcovid_diagnoses'])
 
+
+
+# 2. Get post 48 hours after COVID-19 infection medication count 
 covid_administered = get_postcovid_48hours_med(covid_administered)
 covid_notadministered = get_postcovid_48hours_med(covid_notadministered)
 
@@ -35,18 +54,21 @@ covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_ma
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_8_102422")
 
 
-
+# 3. Get use of vasopressor 
 covid_administered_expanded1 = get_vasopressor_count(covid_administered, anti = True)
 covid_notadministered_expanded1 = get_vasopressor_count(covid_notadministered, anti = False)
 
+
+# 4. Add hospitalization information 
 covid_administered_expanded2 = add_hospitalization(covid_administered_expanded1)
 covid_notadministered_expanded2 =  add_hospitalization(covid_notadministered_expanded1)
 
 write_data_frame_to_sandbox(covid_administered_expanded2, "yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_9_102422", sandbox_db='rdp_phi_sandbox', replace=True)
-
-
 write_data_frame_to_sandbox(covid_notadministered_expanded2, "yh_cohort_covid_maternity_no_anticoagulant_expanded_9_102422", sandbox_db='rdp_phi_sandbox', replace=True)
 
+
+
+# 5. Add coagulation related features 
 
 covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_9_102422")
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_9_102422")
@@ -69,6 +91,11 @@ covid_notadministered_expanded = add_coagulation_related_features(covid_notadmin
 
 write_data_frame_to_sandbox(covid_administered_expanded, 'yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_10_102422', sandbox_db='rdp_phi_sandbox', replace=True)
 write_data_frame_to_sandbox(covid_notadministered_expanded, 'yh_cohort_covid_maternity_no_anticoagulant_expanded_10_102422', sandbox_db='rdp_phi_sandbox', replace=True)
+
+
+
+
+
 covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_10_102422")
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_10_102422")
 
@@ -77,6 +104,8 @@ unvax_women = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_maternity_unvac
 joining_columns = ['pat_id', 'instance', 'episode_id', 'child_episode_id']
 
 
+
+# 7. Add vaccination status
 covid_administered_vax_status = covid_administered.join(unvax_women,joining_columns,'left_anti').withColumn("vaccination_status",F.lit(1)).\
 unionAll(covid_administered.join(unvax_women, joining_columns,'left_semi').withColumn("vaccination_status",F.lit(0)))
 
@@ -92,9 +121,15 @@ covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_ma
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_11_102422")
 
 
+
+# 6. Add maternal death 
+
 covid_administered_with_deaths = add_patient_deaths(covid_administered)
 covid_notadministered_with_deaths = add_patient_deaths(covid_notadministered)
 
+
+
+# 8. Add WHO score 
 
 # get covid encounter info
 df_covid_pyspark = spark.sql("SELECT * FROM rdp_phi_sandbox.snp2_adss_study_who_scores")
@@ -146,12 +181,13 @@ write_data_frame_to_sandbox(covid_notadministered, 'yh_cohort_covid_maternity_no
 
 
 
+
+# 9. Add primary, secondary coagulopathy
+
 # covid anticoagulant prophylactic dose administered cohort 
 covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_12_102422")
 # covid anticoagulant not administered cohort 
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_12_102422")
-
-
 
 covid_administered = covid_administered.drop('coagulopathy_max') 
 covid_notadministered = covid_notadministered.drop('coagulopathy_max') 
@@ -170,6 +206,9 @@ covid_notadministered_conditions_secondary = get_secondary_coagulopathy(covid_no
 covid_notadministered_coagulopathy = add_secondary_coagulopathy(covid_notadministered_primary, covid_notadministered_conditions_secondary)
 
 
+
+# 10. Add bleeding, postpartum hemorrahge
+
 covid_administered_conditions_pph = get_pph(covid_administered_coagulopathy)
 covid_administered_pph = add_pph(covid_administered_coagulopathy, covid_administered_conditions_pph)
 covid_notadministered_conditions_pph = get_pph(covid_notadministered_coagulopathy)
@@ -186,6 +225,9 @@ covid_administered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_ma
 covid_notadministered = spark.sql("SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_13_102422")
 
 
+
+
+# 11. Get contraindication 
 covid_administered_conditions_contraindication = get_contraindication(covid_administered)
 covid_administered_contraindication = add_contraindication(covid_administered, covid_administered_conditions_contraindication)
 covid_notadministered_conditions_contraindication = get_contraindication(covid_notadministered)
@@ -218,7 +260,7 @@ cc_list = anticoagulant_cc_list
 # Columns on which to partition records for aggregation
 partition_columns = covid_union_df.columns
 
-# Get medication order and admin records
+# 11. Add prior therapetuic dosage 
 medication_admin_df = get_medication_orders(
   cohort_df=covid_union_df,
   include_cohort_columns=partition_columns,
