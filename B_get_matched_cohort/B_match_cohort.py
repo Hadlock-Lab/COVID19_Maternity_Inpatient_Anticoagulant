@@ -3,44 +3,19 @@
 
 # import functions from other notebooks
 import COVID19_Maternity_Inpatient_Anticoagulant.A_get_cohorts.cohort_utilities
+import COVID19_Maternity_Inpatient_Anticoagulant.B_get_matched_cohorts.model_utilities
 
-from datetime import date, datetime, timedelta
-from dateutil.relativedelta import *
-import pyspark.sql.functions as F
-from pyspark.sql.types import *
-from pyspark.sql.types import StringType
-import pyspark.sql.functions as F
-import pyspark.sql.functions as f
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.utils import resample
-from sklearn.metrics import accuracy_score
-import imblearn as imb
-from datetime import date
-from pyspark.sql.functions import unix_timestamp
-import pandas as pd
-import numpy as np
-import scipy
-import sklearn 
-import matplotlib.pyplot as plt
-%matplotlib inline
-from scipy import stats
-from sklearn.preprocessing import StandardScaler
-from sklearn.neighbors import NearestNeighbors
-from sklearn import datasets, linear_model
-from sklearn import metrics
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold, cross_val_score
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.datasets import make_regression
-from sklearn.utils import shuffle
-from sklearn.metrics import average_precision_score
-import math
-plt.rcParams.update({'font.size': 12})
-plt.rcParams['pdf.fonttype'] = 42
-spark.conf.set('spark.sql.execution.arrow.enabled', False)
+
+# Workflow of B_classification_model.py 
+# 1. Set random seed
+# 2. format dataframe to psm
+# 5. Run PSM
+# 5.1 Run PSM on all features before COVID-19 treatment onset began 
+# 5.2 Run PSM on top features before COVID-19 treatment onset began 
+# 5.3 Run PSM on sensitivity analysis accounting for medication count at the time of COVID-19 treatment onset
+# 6. visaulization of covariate balance
+# 7. Retrieve information on matched cohort 
+
 
 # Set a seed value
 seed_value= 457
@@ -54,235 +29,6 @@ random.seed(seed_value)
 import numpy as np
 np.random.seed(seed_value)
 
-
-import math
-!pip install psmpy
-from psmpy import PsmPy
-from psmpy.functions import cohenD
-from psmpy.plotting import *
-
-
-def impute_missing_data(df):
-  df.fillna(value=pd.np.nan, inplace=True)
-  imputer = SimpleImputer(missing_values=np.nan, strategy='median')
-  imputer.fit_transform(df)
-  return(imputer.fit_transform(df))
-
-
-def get_matching_pairs(df_experimental, df_control, scaler=True):
-  if scaler:
-      scaler = StandardScaler()
-      scaler.fit(df_experimental.append(df_control))
-      df_experimental_scaler = scaler.transform(df_experimental)
-      df_control_scaler = scaler.transform(df_control)
-      nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree', metric='euclidean').fit(df_control_scaler)
-      distances, indices = nbrs.kneighbors(df_experimental_scaler)
-  
-  else:
-    nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree', metric='euclidean').fit(df_control)
-    distances, indices = nbrs.kneighbors(df_experimental)
-  indices = indices.reshape(indices.shape[0])
-  matched = df_control.iloc[indices, :]
-  return matched
-
-def select_psm_columns(df, columns):
-  return_df = df.select(*columns)
-  return return_df
-
-
-def consolidate_race_responses(l):
-  l_new = []
-  for i in l:
-    if i == 'White':
-      l_new.append('White or Caucasian')
-    elif i == 'Patient Refused' or i == 'Unable to Determine' or i == 'Declined' or i == 'Unknown':
-      continue
-    else:
-      l_new.append(i)
-  l_new = list(set(l_new))
-  return(l_new)
-
-
-def handle_multiracial_exceptions(l):
-  l_new = consolidate_race_responses(l)
-  if l_new is None:
-    return('Unknown')
-  if len(l_new) == 1:
-    return(l_new[0])
-  if 'Other' in l_new:
-    l_new.remove('Other')
-    if l_new is None:
-      return('Other')
-    if len(l_new) == 1:
-      return(l_new[0])
-  return('Multiracial')
-
-
-def format_race(i):
-  if i is None:
-    return('Unknown')
-  if len(i) > 1:
-    return('Multiracial')
-  if i[0] == 'White':
-    return('White or Caucasian')
-  if i[0] == 'Declined' or i[0] == 'Patient Refused':
-    return('Unknown')
-  if i[0] == 'Unable to Determine':
-    return('Unknown')
-  return(i[0])
-
-
-def format_ethnic_group(i):
-  if i is None:
-    return 'Unknown'
-  if i == 'American' or i == 'Samoan':
-    return 'Not Hispanic or Latino'
-  elif i == 'Filipino' or i == 'Hmong':
-    return 'Not Hispanic or Latino'
-  elif i == 'Sudanese':
-    return 'Not Hispanic or Latino'
-  if i == 'Patient Refused' or i == 'None':
-    return 'Unknown'
-  return i
-
-
-def format_parity(i):
-  if i is None:
-    return 0
-  i = int(i)
-  if i == 0 or i == 1:
-    return 0
-  if i > 1 and i < 5:
-    return 1
-  if i >= 5:
-    return 2
-  return 0
-
-
-def format_gravidity(gravidity):
-  if gravidity is None:
-    return 0
-  gravidity = int(gravidity)
-  if gravidity == 0 or gravidity == 1:
-    return 0
-  elif gravidity > 1 and gravidity < 6:
-    return 1
-  elif gravidity >= 6:
-    return 2
-  return 0
-    
-  
-def format_preterm_history(preterm_history, gestational_days):
-
-  if preterm_history is None:
-    return 0
-  else:
-    preterm_history = int(preterm_history)
-    if preterm_history == 0 or (preterm_history == 1 and gestational_days < 259):
-      return 0
-    else:
-      return 1
-  return 0
-
-
-def encode_delivery_method(i):
-  '''
-  0 = Vaginal
-  1 = C-Section
-  -1 = Unknown
-  '''
-  list_vaginal = ['Vaginal, Spontaneous',
-       'Vaginal, Vacuum (Extractor)',
-       'Vaginal, Forceps', 'Vaginal < 20 weeks',
-       'Vaginal, Breech', 'VBAC, Spontaneous',
-       'Vaginal Birth after Cesarean Section',
-       'Spontaneous Abortion']
-  list_c_section = ['C-Section, Low Transverse',
-       'C-Section, Low Vertical',
-       'C-Section, Classical',
-       'C-Section, Unspecified']
-  if i in list_vaginal:
-    return(0)
-  if i in list_c_section:
-    return(1)
-  return(-1)
-
-def encode_ruca(ruca):
-  if ruca is None:
-    return -1
-  if ruca == 'Rural':
-    return 0
-  if ruca == 'SmallTown':
-    return 1
-  if ruca == 'Micropolitan':
-    return 2
-  if ruca == 'Metropolitan':
-    return 3
-  return -1
-
-
-def encode_bmi(bmi):
-  if bmi is None or math.isnan(bmi):
-    return -1
-  bmi = int(bmi)
-  if bmi >= 15 and bmi < 18.5:
-    return 0
-  if bmi < 25:
-    return 1
-  if bmi < 30:
-    return 2
-  if bmi < 35:
-    return 3
-  if bmi < 40:
-    return 4
-  return -1
-
-
-def encode_age(age):
-  if age < 25:
-    return 0
-  if age < 30:
-    return 1
-  if age < 35:
-    return 2
-  if age < 40:
-    return 3
-  if age < 45:
-    return 4
-  return -1
-
-
-def encode_oxygen_assistance(oxygen):
-  if oxygen is None:
-    return 0
-  elif oxygen == -1:
-    return 0
-  elif oxygen == 0:
-    return 0
-  elif oxygen > 0:
-    return 1
-
-
-def handle_missing_bmi(df):
-  print('# Percent of patients with pregravid BMI:', str(round(100*(len(df) - df['pregravid_bmi'].isna().sum())/len(df), 1)), '%')
-  print('Imputing median pregravid BMI of', str(round(df['pregravid_bmi'].median(), 2)), '...')
-  df['pregravid_bmi'].fillna(df['pregravid_bmi'].median(), inplace = True)
-  print('\n')
-  return df
-
-def handle_missing_svi(df, col):
-  print('# Percent of patients with svi:', str(round(100*(len(df) - df[col].isna().sum())/len(df), 1)), '%')
-  print('Imputing median svi of', str(round(df[col].median(), 2)), '...')
-  df[col].fillna(df[col].median(), inplace = True)
-  print('\n')
-  return df
-
-
-
-from sklearn.preprocessing import MinMaxScaler
-import numpy as np
-  
-  
 
 
 
@@ -355,9 +101,7 @@ def format_dataframe_for_psm(df, select_columns):
   return(df)
 
 
-covid_administered = spark.sql('SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_covid_anticoagulant_prophylactic_expanded_16_102422').dropDuplicates(['pat_id','episode_id','child_episode_id'])
-covid_notadministered = spark.sql('SELECT * FROM rdp_phi_sandbox.yh_cohort_covid_maternity_no_anticoagulant_expanded_16_102422').dropDuplicates(['pat_id','episode_id','child_episode_id'])
-covid_notadministered = covid_notadministered.withColumn('covid_test_date',F.to_timestamp("covid_test_date"))
+
 
 # format dataframes for propensity score matching
 df_experimental_psm = format_dataframe_for_psm(covid_administered, select_columns)
@@ -367,7 +111,7 @@ df_control_psm = format_dataframe_for_psm(covid_notadministered, select_columns)
 df_control_psm = df_control_psm.rename(columns=column_dict)
 print('# Number of women who did not administer anticoagulant at time of delivery: ' + str(len(df_control_psm)))
 
-precovid_diagnoses = ['pat_id', 'instance', 'episode_id', 'child_episode_id', 'pre-covid diagnoses count']
+
 precovid_features = ['pat_id', 'instance', 'episode_id', 'child_episode_id',
        'covid_total_med_post48hours_count', 'vaccination status',
        'pregravid BMI', 'maternal age', 'ethnicity', 'fetal sex', 'parity',
@@ -382,14 +126,9 @@ precovid_features = ['pat_id', 'instance', 'episode_id', 'child_episode_id',
        'commercial insurance']
 precovid_topfeatures = ['pat_id', 'instance', 'episode_id', 'child_episode_id', 'variant_omicron', 'socioeconomic', 'household composition and disability',
        'minority status and language', 'housing type and transportation', '3rd trimester infection', 'pre-covid diagnoses count']
-precovid_top_sa1_features = precovid_topfeatures  + ['covid_48hours_med_count']
-precovid_top_sa1_features2 = precovid_topfeatures  + ['covid inital med count']
-precovid_top_sa2_features = precovid_topfeatures  + ['oxygen assistance']
+precovid_top_sa1_features = precovid_topfeatures  + ['covid inital med count']
 
 
-df_experimental_psm_precovid_diagnoses = shuffle(df_experimental_psm[precovid_diagnoses], random_state=seed_value)
-print('# Number of women vaccinated women selected as a random subset for propensity score matching: ' + str(len(df_experimental_psm_precovid_diagnoses)))
-df_control_psm_precovid_diagnoses = shuffle(df_control_psm[precovid_diagnoses], random_state=seed_value)
 
 
 df_experimental_psm_precovid = shuffle(df_experimental_psm[precovid_features], random_state=seed_value)
@@ -406,39 +145,6 @@ df_experimental_psm_precovid_top_sa1 = shuffle(df_experimental_psm[precovid_top_
 print('# Number of women vaccinated women selected as a random subset for propensity score matching: ' + str(len(df_experimental_psm_precovid_top_sa1)))
 df_control_psm_precovid_top_sa1 = shuffle(df_control_psm[precovid_top_sa1_features], random_state=seed_value)
 
-
-df_experimental_psm_precovid_top_sa1_2 = shuffle(df_experimental_psm[precovid_top_sa1_features2], random_state=seed_value)
-print('# Number of women vaccinated women selected as a random subset for propensity score matching: ' + str(len(df_experimental_psm_precovid_top_sa1_2)))
-df_control_psm_precovid_top_sa1_2 = shuffle(df_control_psm[precovid_top_sa1_features2], random_state=seed_value)
-
-
-df_experimental_psm_precovid_top_sa2 = shuffle(df_experimental_psm[precovid_top_sa2_features], random_state=seed_value)
-print('# Number of women vaccinated women selected as a random subset for propensity score matching: ' + str(len(df_experimental_psm_precovid_top_sa2)))
-df_control_psm_precovid_top_sa2 = shuffle(df_control_psm[precovid_top_sa2_features], random_state=seed_value)
-
-
-
-# identify top features predicting who gets vaccinated using machine learning
-# format for machine learning
-df_experimental_psm['anticoagulant_status'] = 1
-df_control_psm['anticoagulant_status'] = 0
-df_final = shuffle(df_experimental_psm.append(df_control_psm, ignore_index=True), random_state=seed_value)
-cols = df_final.columns
-df_final[cols] = df_final[cols].apply(pd.to_numeric, errors='coerce')
-df_final2 = df_final.dropna()
-df_final2['id'] = df_final2['pat_id'].astype(str) + df_final2['episode_id'].astype('int').astype('str') + df_final2['child_episode_id'].astype('int').astype('str')
-df_final2[cols] = df_final2[cols].apply(pd.to_numeric, errors='coerce')
-df_final2.head()
-
-
-df_experimental_psm_precovid_diagnoses['anticoagulant_status'] = 1
-df_control_psm_precovid_diagnoses['anticoagulant_status'] = 0
-df_final_precovid_diagnoses = shuffle(df_experimental_psm_precovid_diagnoses.append(df_control_psm_precovid_diagnoses, ignore_index=True), random_state=seed_value)
-cols = df_final_precovid_diagnoses.columns
-df_final_precovid_diagnoses[cols] = df_final_precovid_diagnoses[cols].apply(pd.to_numeric, errors='coerce')
-df_final2_precovid_diagnoses = df_final_precovid_diagnoses.dropna()
-df_final2_precovid_diagnoses['id'] = df_final2_precovid_diagnoses['pat_id'].astype(str) + df_final2_precovid_diagnoses['episode_id'].astype('int').astype('str') + df_final2_precovid_diagnoses['child_episode_id'].astype('int').astype('str')
-df_final2_precovid_diagnoses[cols] = df_final2_precovid_diagnoses[cols].apply(pd.to_numeric, errors='coerce')
 
 
 df_experimental_psm_precovid['anticoagulant_status'] = 1
@@ -471,3 +177,89 @@ df_final2_precovid_top_sa1 = df_final_precovid_top_sa1.dropna()
 df_final2_precovid_top_sa1['id'] = df_final2_precovid_top_sa1['pat_id'].astype(str) + df_final2_precovid_top_sa1['episode_id'].astype('int').astype('str') + df_final2_precovid_top_sa1['child_episode_id'].astype('int').astype('str')
 df_final2_precovid_top_sa1[cols] = df_final2_precovid_top_sa1[cols].apply(pd.to_numeric, errors='coerce')
 df_final2_precovid_top_sa1.head()
+
+
+
+
+# propensity score match with replacement - all features before COVID-19 treatment onset began
+psm = PsmPy(df_final2_precovid, treatment='anticoagulant_status', indx='id', exclude = ['pat_id', 'instance', 'episode_id', 'child_episode_id'])
+psm.logistic_ps(balance=True)
+psm.knn_matched(matcher='propensity_logit', replacement=True, caliper=0.2)
+
+
+# propensity score match with replacement - top features before COVID-19 treatment onset began 
+psm_top = PsmPy(df_final2_precovid_top, treatment='anticoagulant_status', indx='id', exclude = ['pat_id', 'instance', 'episode_id', 'child_episode_id'])
+psm_top.logistic_ps(balance=True)
+psm_top.knn_matched(matcher='propensity_logit', replacement=True, caliper=0.2)
+
+# propensity score match with replacement - sensitivity analysis including medication count at the time of COVID-19 treatment onset 
+psm_top_sa1 = PsmPy(df_final2_precovid_top_sa1, treatment='anticoagulant_status', indx='id', exclude = ['pat_id', 'instance', 'episode_id', 'child_episode_id'])
+psm_top_sa1.logistic_ps(balance=True)
+psm_top_sa1.knn_matched(matcher='propensity_logit', replacement=True, caliper=0.2)
+
+
+# visualization of covariate balance between control and treatment group  
+psm.plot_match(Title='Side by side matched controls', Ylabel='Number of patients', Xlabel= 'Propensity logit', names = ['Administrated', 'Not administrated'], save=True)
+psm.effect_size_plot(save=False)
+
+psm_top.plot_match(Title='Side by side matched controls', Ylabel='Number of patients', Xlabel= 'Propensity logit', names = ['Administrated', 'Not administrated'], save=True)
+psm_top.effect_size_plot(save=False)
+
+psm_top_sa1.plot_match(Title='Side by side matched controls', Ylabel='Number of patients', Xlabel= 'Propensity logit', names = ['Administrated', 'Not administrated'], save=True)
+psm_top_sa1.effect_size_plot(save=False)
+
+
+
+# retreive full information on those matched patients 
+
+df_matched = retrieve_matched_id_info(df_final2_precovid, psm.matched_ids)
+df_temp = spark.createDataFrame(df_matched[['pat_id', 'instance', 'episode_id', 'child_episode_id']])
+df_control = covid_notadministered
+df_control.createOrReplaceTempView("control")
+df_temp.createOrReplaceTempView("temp")
+df_matched_final = spark.sql(
+"""
+SELECT c.*
+FROM control AS c
+INNER JOIN temp AS t 
+ON c.pat_id = t.pat_id
+  AND c.instance = t.instance
+  AND c.episode_id = t.episode_id
+  AND c.child_episode_id = t.child_episode_id
+  """)
+
+
+df_matched2 = retrieve_matched_id_info(df_final2_precovid_top, psm_top.matched_ids)
+df_temp2 = spark.createDataFrame(df_matched2[['pat_id', 'instance', 'episode_id', 'child_episode_id']])
+df_control = covid_notadministered
+df_control.createOrReplaceTempView("control")
+df_temp2.createOrReplaceTempView("temp")
+df_matched_final_top = spark.sql(
+"""
+SELECT c.*
+FROM control AS c
+INNER JOIN temp AS t 
+ON c.pat_id = t.pat_id
+  AND c.instance = t.instance
+  AND c.episode_id = t.episode_id
+  AND c.child_episode_id = t.child_episode_id
+  """)
+
+
+df_matched3 = retrieve_matched_id_info(df_final2_precovid_top_sa1, psm_top_sa1.matched_ids)
+df_temp3 = spark.createDataFrame(df_matched3[['pat_id', 'instance', 'episode_id', 'child_episode_id']])
+df_control = covid_notadministered
+df_control.createOrReplaceTempView("control")
+df_temp3.createOrReplaceTempView("temp")
+df_matched_final_top_sa1 = spark.sql(
+"""
+SELECT c.*
+FROM control AS c
+INNER JOIN temp AS t 
+ON c.pat_id = t.pat_id
+  AND c.instance = t.instance
+  AND c.episode_id = t.episode_id
+  AND c.child_episode_id = t.child_episode_id
+  """)
+
+
