@@ -14,9 +14,9 @@ We used Python version 3.8.10.
 ## Workflow 
 Our workflow is described using alphabets. 
 
-- utilities[https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/utilities] contains functions written by Hadlock Lab and required to be loaded for analysis    
-- background cohort[https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/background_cohorts] is used to generate PHSA COVID-19 Maternity Cohort 
-- A_get_cohorts[https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/A_get_cohorts] prepares cohort for analysis. Includes cohort selection process and feature engineering. 
-- B_get_matched_cohort[https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/B_get_matched_cohort] runs classification model, propensity score matching, and feature importance
-- C_get_figures[https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/C_get_figures] contains codes used for figure or table generation 
-- D_sensitivity_analysis[https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/blob/main/D_sensitivity_analysis.py] is code for sensitivity analysis 
+- [utilities](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/utilities) contains functions written by Hadlock Lab and required to be loaded for analysis    
+- [background cohort](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/background_cohorts) is used to generate PHSA COVID-19 Maternity Cohort 
+- [A_get_cohorts](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/A_get_cohorts) prepares cohort for analysis. Includes cohort selection process and feature engineering. 
+- [B_get_matched_cohort](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/B_get_matched_cohort) runs classification model, propensity score matching, and feature importance
+- [C_get_figures](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/tree/main/C_get_figures) contains codes used for figure or table generation 
+- [D_sensitivity_analysis](https://github.com/Hadlock-Lab/COVID19_Maternity_Inpatient_Anticoagulant/blob/main/D_sensitivity_analysis.py) is code for sensitivity analysis 
